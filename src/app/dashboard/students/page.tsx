@@ -36,7 +36,7 @@ export default async function StudentsPage({
   // classes they run. The capability says "may read students"; scope says "which".
   const data =
     user.tier === "super_admin"
-      ? await getAllStudents()
+      ? await getAllStudents(undefined, true)
       : user.tier === "hod"
         ? await getStudentsByDepartments(user.deptCodes)
         : await getStudentsByClassKeys(user.classKeys)

@@ -4,8 +4,9 @@ import { getErrorMessage, isUniqueViolation } from "@/lib/error-utils"
 import { getSessionUser } from "@/lib/session"
 import {
   createAuditLog,
-  deactivateStudent,
+  deleteStudent,
   getStudentById,
+  setStudentActive,
   updateStudent,
 } from "@/db/queries"
 import { updateStudentSchema } from "@/db/validations"
@@ -22,6 +23,7 @@ const studentUpdateSchema = updateStudentSchema.pick({
   department: true,
   division: true,
   year: true,
+  isActive: true,
 })
 
 function validationMessage(error: { issues: { message: string }[] }) {
@@ -38,12 +40,28 @@ export async function PATCH(
     if (user.tier !== "super_admin") return apiError("Forbidden", 403)
 
     const { id } = await params
-    const existing = await getStudentById(id)
+    const existing = await getStudentById(id, true)
     if (!existing) return apiError("Student not found", 404)
 
     const parsed = studentUpdateSchema.safeParse(await request.json())
     if (!parsed.success) return apiError(validationMessage(parsed.error), 400)
-    const data = parsed.data
+    const { isActive, ...data } = parsed.data
+    if (isActive !== undefined && Object.keys(data).length === 0) {
+      if (isActive === existing.isActive) return apiSuccess(existing)
+      const updated = await setStudentActive(id, isActive)
+      if (!updated) return apiError("Student not found", 404)
+      await createAuditLog({
+        action: isActive ? "student.reactivated" : "student.deactivated",
+        actorId: user.id,
+        targetType: "student",
+        targetId: id,
+        details: { rollNumber: existing.rollNumber },
+      })
+      return apiSuccess(updated)
+    }
+    if (Object.keys(data).length === 0) {
+      return apiError("No fields to update", 400)
+    }
     const rollNumber =
       data.rollNumber?.trim().toUpperCase() ?? existing.rollNumber
     const department =
@@ -112,20 +130,20 @@ export async function DELETE(
     if (user.tier !== "super_admin") return apiError("Forbidden", 403)
 
     const { id } = await params
-    const existing = await getStudentById(id)
+    const existing = await getStudentById(id, true)
     if (!existing) return apiError("Student not found", 404)
-    const updated = await deactivateStudent(id)
-    if (!updated) return apiError("Student not found", 404)
+    const deleted = await deleteStudent(id)
+    if (!deleted) return apiError("Student not found", 404)
 
     await createAuditLog({
-      action: "student.deactivated",
+      action: "student.deleted",
       actorId: user.id,
       targetType: "student",
       targetId: id,
-      details: { rollNumber: existing.rollNumber },
+      details: { rollNumber: existing.rollNumber, isActive: existing.isActive },
     })
-    return apiSuccess(updated)
+    return apiSuccess({ id, deleted: true })
   } catch (error) {
-    return apiError(getErrorMessage(error, "Could not deactivate student"), 500)
+    return apiError(getErrorMessage(error, "Could not delete student"), 500)
   }
 }

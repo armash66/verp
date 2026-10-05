@@ -61,7 +61,9 @@ export function StudentsClient({
 
   async function deactivateOne(student: StudentRow) {
     const response = await fetch(`/api/students/${student.id}`, {
-      method: "DELETE",
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: false }),
     })
     const body = await response.json()
     if (!response.ok) {
@@ -70,6 +72,40 @@ export function StudentsClient({
     }
     toast.success(
       `${student.firstName} ${student.lastName}`.trim() + " deactivated"
+    )
+    setOpen(null)
+    router.refresh()
+  }
+
+  async function reactivateOne(student: StudentRow) {
+    const response = await fetch(`/api/students/${student.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: true }),
+    })
+    const body = await response.json()
+    if (!response.ok) {
+      toast.error(body.error ?? "Could not reactivate student")
+      return
+    }
+    toast.success(
+      `${student.firstName} ${student.lastName}`.trim() + " reactivated"
+    )
+    setOpen(null)
+    router.refresh()
+  }
+
+  async function deleteOne(student: StudentRow) {
+    const response = await fetch(`/api/students/${student.id}`, {
+      method: "DELETE",
+    })
+    const body = await response.json()
+    if (!response.ok) {
+      toast.error(body.error ?? "Could not delete student")
+      return
+    }
+    toast.success(
+      `${student.firstName} ${student.lastName}`.trim() + " permanently deleted"
     )
     setOpen(null)
     router.refresh()
@@ -147,6 +183,11 @@ export function StudentsClient({
           { columnId: "department", label: "Department" },
           { columnId: "year", label: "Year" },
           { columnId: "division", label: "Division" },
+          {
+            columnId: "isActive",
+            label: "Status",
+            format: (value) => (value === "true" ? "Active" : "Inactive"),
+          },
         ]}
         searchPlaceholder="Search students..."
         initialFilters={
@@ -161,6 +202,7 @@ export function StudentsClient({
           meta: [
             { label: "Dept", value: s.department },
             { label: "Year", value: s.year },
+            { label: "Status", value: s.isActive ? "Active" : "Inactive" },
             ...(s.division ? [{ label: "Div", value: s.division }] : []),
             {
               label: "Account",
@@ -239,14 +281,35 @@ export function StudentsClient({
                   Edit
                 </Button>
               )}
-              {canManage && (
+              {canManage && open.isActive && (
                 <ConfirmAction
                   label="Deactivate"
                   size="sm"
                   title={`Deactivate ${open.firstName} ${open.lastName}?`}
-                  description="This keeps the record and history but removes the student from active rosters."
+                  description="This keeps the record and history but removes the student from active rosters. You can reactivate it later."
                   confirmLabel="Deactivate"
                   onConfirm={() => deactivateOne(open)}
+                />
+              )}
+              {canManage && !open.isActive && (
+                <ConfirmAction
+                  label="Reactivate"
+                  size="sm"
+                  destructive={false}
+                  title={`Reactivate ${open.firstName} ${open.lastName}?`}
+                  description="This returns the student to active rosters."
+                  confirmLabel="Reactivate"
+                  onConfirm={() => reactivateOne(open)}
+                />
+              )}
+              {canManage && (
+                <ConfirmAction
+                  label="Delete permanently"
+                  size="sm"
+                  title={`Permanently delete ${open.firstName} ${open.lastName}?`}
+                  description="This permanently removes the student and cascades related marks, attendance, and batch records. This cannot be undone."
+                  confirmLabel="Delete permanently"
+                  onConfirm={() => deleteOne(open)}
                 />
               )}
             </div>
@@ -264,6 +327,80 @@ export function StudentsClient({
         />
       )}
     </>
+  )
+}
+
+export function StudentLifecycleActions({
+  id,
+  name,
+  isActive,
+}: {
+  id: string
+  name: string
+  isActive: boolean
+}) {
+  const router = useRouter()
+
+  async function setActive(next: boolean) {
+    const response = await fetch(`/api/students/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: next }),
+    })
+    const body = await response.json()
+    if (!response.ok) {
+      toast.error(
+        body.error ?? `Could not ${next ? "reactivate" : "deactivate"} student`
+      )
+      return
+    }
+    toast.success(`${name} ${next ? "reactivated" : "deactivated"}`)
+    router.refresh()
+  }
+
+  async function permanentlyDelete() {
+    const response = await fetch(`/api/students/${id}`, { method: "DELETE" })
+    const body = await response.json()
+    if (!response.ok) {
+      toast.error(body.error ?? "Could not delete student")
+      return
+    }
+    toast.success(`${name} permanently deleted`)
+    router.push("/dashboard/students")
+    router.refresh()
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {isActive ? (
+        <ConfirmAction
+          label="Deactivate"
+          size="sm"
+          title={`Deactivate ${name}?`}
+          description="This keeps the record and history but removes the student from active rosters. You can reactivate it later."
+          confirmLabel="Deactivate"
+          onConfirm={() => setActive(false)}
+        />
+      ) : (
+        <ConfirmAction
+          label="Reactivate"
+          size="sm"
+          destructive={false}
+          title={`Reactivate ${name}?`}
+          description="This returns the student to active rosters."
+          confirmLabel="Reactivate"
+          onConfirm={() => setActive(true)}
+        />
+      )}
+      <ConfirmAction
+        label="Delete permanently"
+        size="sm"
+        title={`Permanently delete ${name}?`}
+        description="This permanently removes the student and cascades related marks, attendance, and batch records. This cannot be undone."
+        confirmLabel="Delete permanently"
+        onConfirm={permanentlyDelete}
+      />
+    </div>
   )
 }
 
