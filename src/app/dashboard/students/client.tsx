@@ -404,14 +404,7 @@ export function StudentLifecycleActions({
   )
 }
 
-const YEARS = ["FE", "SE", "TE", "BE"] as const
 const DIVISIONS = ["A", "B", "C"] as const
-const SEMESTERS: Record<(typeof YEARS)[number], string[]> = {
-  FE: ["1", "2"],
-  SE: ["3", "4"],
-  TE: ["5", "6"],
-  BE: ["7", "8"],
-}
 
 type StudentFormValue = {
   firstName: string
@@ -420,8 +413,6 @@ type StudentFormValue = {
   email: string
   department: string
   division: string
-  year: (typeof YEARS)[number]
-  semester: string
 }
 
 const blankStudent: StudentFormValue = {
@@ -431,8 +422,6 @@ const blankStudent: StudentFormValue = {
   email: "",
   department: "",
   division: "A",
-  year: "FE",
-  semester: "1",
 }
 
 export function StudentFormDialog({
@@ -458,9 +447,6 @@ export function StudentFormDialog({
           email: student.email ?? "",
           department: student.department,
           division: student.division ?? "A",
-          year: student.year as StudentFormValue["year"],
-          semester:
-            SEMESTERS[student.year as StudentFormValue["year"]]?.[0] ?? "1",
         }
       : blankStudent
   )
@@ -481,10 +467,9 @@ export function StudentFormDialog({
         firstName: form.firstName,
         lastName: form.lastName,
         rollNumber: form.rollNumber,
-        email: form.email || undefined,
+        email: form.email.trim() ? form.email.trim() : isEdit ? "" : undefined,
         department: form.department,
         division: form.division,
-        year: form.year,
       }
       const response = await fetch(
         isEdit ? `/api/students/${student!.id}` : "/api/students",
@@ -508,10 +493,7 @@ export function StudentFormDialog({
   }
 
   const ready =
-    form.firstName.trim() &&
-    form.rollNumber.trim() &&
-    form.department &&
-    form.year
+    form.firstName.trim() && form.rollNumber.trim() && form.department
   const dialog = (
     <Dialog open={open} onOpenChange={setOpen}>
       {!isEdit && (
@@ -594,60 +576,6 @@ export function StudentFormDialog({
                 ))}
               </SelectContent>
             </Select>
-          </Field>
-          <Field className="gap-1.5">
-            <FieldLabel className="text-muted-foreground text-xs">
-              Year
-            </FieldLabel>
-            <Select
-              value={form.year}
-              onValueChange={(value) => {
-                if (
-                  value &&
-                  YEARS.includes(value as StudentFormValue["year"])
-                ) {
-                  set("year", value)
-                  set(
-                    "semester",
-                    SEMESTERS[value as StudentFormValue["year"]][0]
-                  )
-                }
-              }}
-            >
-              <SelectTrigger className="h-9 w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {YEARS.map((year) => (
-                  <SelectItem key={year} value={year}>
-                    {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field className="gap-1.5">
-            <FieldLabel className="text-muted-foreground text-xs">
-              Semester
-            </FieldLabel>
-            <Select
-              value={form.semester}
-              onValueChange={(value) => value && set("semester", value)}
-            >
-              <SelectTrigger className="h-9 w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SEMESTERS[form.year].map((semester) => (
-                  <SelectItem key={semester} value={semester}>
-                    {semester}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-muted-foreground text-xs">
-              Used for academic context; semester is stored on course offerings.
-            </p>
           </Field>
         </div>
         <DialogFooter>

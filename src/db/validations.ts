@@ -4,10 +4,18 @@ import { students } from "./schema/students"
 import { faculty } from "./schema/faculty"
 
 export const insertStudentSchema = createInsertSchema(students, {
-  email: (schema) => schema.email("Invalid email format").optional(),
+  email: (schema) =>
+    z.preprocess(
+      (val) => (typeof val === "string" ? val.trim() : val),
+      schema
+        .email("Invalid email format")
+        .or(z.literal(""))
+        .nullable()
+        .optional()
+    ),
   department: () => z.string().min(1, "Department is required"),
   division: () => z.enum(["A", "B", "C"]).optional(),
-  year: () => z.enum(["FE", "SE", "TE", "BE"]),
+  year: () => z.enum(["FE", "SE", "TE", "BE"]).optional(),
 })
 export const updateStudentSchema = insertStudentSchema.partial()
 export const selectStudentSchema = createSelectSchema(students)

@@ -5,7 +5,7 @@ import { getSessionUser } from "@/lib/session"
 import { createAuditLog, createStudent } from "@/db/queries"
 import { insertStudentSchema } from "@/db/validations"
 import { tryClassKeyFromRoll } from "@/lib/class-key"
-import { parseRollNumber } from "@/lib/roll-number"
+import { expectedYear, parseRollNumber } from "@/lib/roll-number"
 
 export const dynamic = "force-dynamic"
 
@@ -23,16 +23,30 @@ function validationMessage(error: { issues: { message: string }[] }) {
   return error.issues[0]?.message ?? "Invalid student data"
 }
 
-function normalizeStudent(input: typeof studentInputSchema._output) {
+export function deriveYearFromRoll(
+  rollNumber: string,
+  fallback = "FE"
+): string {
+  try {
+    const { admissionYear, isDSY } = parseRollNumber(rollNumber)
+    const cohortYear = isDSY ? admissionYear - 1 : admissionYear
+    return expectedYear(cohortYear, new Date()) ?? fallback
+  } catch {
+    return fallback
+  }
+}
+
+export function normalizeStudent(input: typeof studentInputSchema._output) {
+  const rollNumber = input.rollNumber.trim().toUpperCase()
   return {
     firstName: input.firstName.trim(),
     lastName: (input.lastName ?? "").trim(),
-    rollNumber: input.rollNumber.trim().toUpperCase(),
-    email: input.email?.trim().toLowerCase() || null,
+    rollNumber,
+    email: input.email ? input.email.trim().toLowerCase() : null,
     department: input.department.trim().toUpperCase(),
     division: input.division?.toUpperCase() ?? null,
-    year: input.year,
-    classKey: tryClassKeyFromRoll(input.rollNumber),
+    year: input.year ?? deriveYearFromRoll(rollNumber),
+    classKey: tryClassKeyFromRoll(rollNumber),
   }
 }
 

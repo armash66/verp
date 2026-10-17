@@ -30,6 +30,90 @@ function validationMessage(error: { issues: { message: string }[] }) {
   return error.issues[0]?.message ?? "Invalid student data"
 }
 
+export type StudentUpdateInput = {
+  firstName?: string
+  lastName?: string
+  rollNumber?: string
+  email?: string | null
+  department?: string
+  division?: string | null
+  year?: string
+}
+
+export function buildStudentUpdatePayload(
+  data: StudentUpdateInput,
+  existing: {
+    rollNumber: string
+    email: string | null
+    classKey: string | null
+    department: string
+    division: string | null
+  }
+) {
+  const rollNumber =
+    data.rollNumber !== undefined
+      ? data.rollNumber.trim().toUpperCase()
+      : existing.rollNumber
+  const rollNumberChanged =
+    data.rollNumber !== undefined && rollNumber !== existing.rollNumber
+
+  const department =
+    data.department !== undefined
+      ? data.department.trim().toUpperCase()
+      : existing.department
+  const division =
+    data.division !== undefined
+      ? data.division
+        ? data.division.toUpperCase()
+        : null
+      : existing.division
+
+  const payload: Partial<{
+    firstName: string
+    lastName: string
+    rollNumber: string
+    email: string | null
+    department: string
+    division: string | null
+    year: string
+    classKey: string | null
+  }> = {}
+
+  if (data.firstName !== undefined) {
+    payload.firstName = data.firstName.trim()
+  }
+  if (data.lastName !== undefined) {
+    payload.lastName = data.lastName.trim()
+  }
+  if (data.rollNumber !== undefined) {
+    payload.rollNumber = rollNumber
+  }
+  if (data.department !== undefined) {
+    payload.department = department
+  }
+  if (data.division !== undefined) {
+    payload.division = division
+  }
+  if (data.year !== undefined) {
+    payload.year = data.year
+  }
+  if (data.email !== undefined) {
+    payload.email =
+      data.email && data.email.trim() ? data.email.trim().toLowerCase() : null
+  }
+  if (rollNumberChanged) {
+    payload.classKey = tryClassKeyFromRoll(rollNumber)
+  }
+
+  return {
+    rollNumber,
+    rollNumberChanged,
+    department,
+    division,
+    payload,
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -62,11 +146,13 @@ export async function PATCH(
     if (Object.keys(data).length === 0) {
       return apiError("No fields to update", 400)
     }
-    const rollNumber =
-      data.rollNumber?.trim().toUpperCase() ?? existing.rollNumber
-    const department =
-      data.department?.trim().toUpperCase() ?? existing.department
-    const division = data.division?.toUpperCase() ?? existing.division
+
+    const {
+      rollNumber,
+      department,
+      division,
+      payload: updatePayload,
+    } = buildStudentUpdatePayload(data, existing)
 
     try {
       const roll = parseRollNumber(rollNumber)
@@ -89,16 +175,7 @@ export async function PATCH(
       )
     }
 
-    const updated = await updateStudent(id, {
-      ...data,
-      firstName: data.firstName?.trim(),
-      lastName: data.lastName?.trim(),
-      rollNumber,
-      email: data.email?.trim().toLowerCase() || null,
-      department,
-      division,
-      classKey: tryClassKeyFromRoll(rollNumber),
-    })
+    const updated = await updateStudent(id, updatePayload)
     if (!updated) return apiError("Student not found", 404)
 
     await createAuditLog({
