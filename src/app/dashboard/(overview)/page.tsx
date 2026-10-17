@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation"
 import { getSessionUser } from "@/lib/session"
-import { AdminDashboard } from "./admin-dashboard"
-import { HodDashboard } from "./hod-dashboard"
-import { StudentDashboard } from "./student-dashboard"
-import { TeacherDashboard } from "./teacher-dashboard"
+import { AdminDashboard } from "../admin-dashboard"
+import { HodDashboard } from "../hod-dashboard"
+import { StudentDashboard } from "../student-dashboard"
+import { TeacherDashboard } from "../teacher-dashboard"
 
 export const dynamic = "force-dynamic"
 
