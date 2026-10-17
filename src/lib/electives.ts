@@ -59,7 +59,8 @@ export function studentsWithMarks(
 
 const LABEL: Record<Component, string> = {
   isa: "ISA",
-  mse: "MSE",
+  mse1: "MSE 1",
+  mse2: "MSE 2",
   ese: "ESE",
 }
 

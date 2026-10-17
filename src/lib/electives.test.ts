@@ -62,7 +62,7 @@ describe("an elective's completeness", () => {
     ["a", full],
     ["b", full],
   ])
-  const all: Component[] = ["isa", "mse", "ese"]
+  const all: Component[] = ["isa", "mse1", "mse2", "ese"]
 
   it("is complete once everybody taking it is marked", () => {
     const roster = offeringRoster(ELECTIVE, cls, new Set(["a", "b"]))
@@ -140,14 +140,14 @@ describe("rosterFrozenReason", () => {
     )
   })
 
-  // Publishing needs every component locked, so both usually hold at once.
+  // A published subject usually still has locks on, so the message names them.
   it("names the locks to reopen along with the results to withdraw", () => {
     const reason = rosterFrozenReason({
       published: true,
-      locked: ["isa", "mse", "ese"],
+      locked: ["isa", "mse1", "mse2", "ese"],
     })
     expect(reason).toBe(
-      "Its results are published. Withdraw them and reopen ISA, MSE, ESE on the Marks tab before changing who takes it."
+      "Its results are published. Withdraw them and reopen ISA, MSE 1, MSE 2, ESE on the Marks tab before changing who takes it."
     )
   })
 })
